@@ -55,7 +55,6 @@
     </div>
 
     <div class="action-buttons">
-        <button class="sec-btn" id="saveBtn">💾 СОХРАНИТЬ</button>
         <button class="sec-btn" id="rebirthBtn">🔄 ПЕРЕРОЖДЕНИЕ <span id="rebirthCostText"></span></button>
         <button class="sec-btn" id="resetBtn">🌀 СБРОС</button>
     </div>
@@ -67,6 +66,7 @@
     let baseClickGain = 1;
     let clickMultiplier = 1.0;
     let clickComboCounter = 0;
+    let totalEarned = 0.0;
     const MAX_MULTI = 3.0;
     const CLICKS_PER_BOOST = 10;
     
@@ -118,6 +118,9 @@
 
     let lastTimestamp = 0;
     let passiveInterval = null;
+    let autoSaveInterval = null;
+    let saveInProgress = false;
+    let hasPendingSave = false;
     
     function getUpgradePrice(upgrade) {
         let price = Math.floor(upgrade.basePrice * (1 + upgrade.level * 0.7));
@@ -143,7 +146,7 @@
         window.permanentMultiBonus = totalPermMulti;
         updateClickMultiplierDisplay();
         
-        window.currentPassiveIncome = totalPassive * getIncomeMultiplier();
+        window.basePassiveIncome = totalPassive * getIncomeMultiplier();
         updateEPSDisplay();
     }
     
@@ -156,10 +159,12 @@
         let currentStepClicks = clickComboCounter % CLICKS_PER_BOOST;
         let barPercent = (currentStepClicks / CLICKS_PER_BOOST) * 100;
         document.getElementById("heatBarFill").style.width = `${barPercent}%`;
+        updateEPSDisplay();
     }
 
     function addEssence(amount) {
         essence += amount;
+        if (amount > 0) totalEarned += amount;
         if (essence < 0) essence = 0;
         updateUI();
     }
@@ -218,6 +223,7 @@
             upgrade.level++;
             recalculateBonuses();
             updateUI();
+            saveGame(false);
             showFloatingText(`📜 ${upgrade.name} ур.${upgrade.level}`, "#c7f0a8");
         } else {
             showFloatingText("Не хватает эссенции!", "#ffaa88");
@@ -263,37 +269,85 @@
     }
     
     function updateEPSDisplay() {
-        let passive = window.currentPassiveIncome || 0;
+        let passive = (window.basePassiveIncome || 0) * clickMultiplier;
         let eps = passive;
         document.getElementById("epsDisplay").innerHTML = `⚗️ +${eps.toFixed(1)}/сек`;
     }
     
     function applyPassiveIncome() {
-        let passiveIncome = window.currentPassiveIncome || 0;
+        let passiveIncome = (window.basePassiveIncome || 0) * clickMultiplier;
         if (passiveIncome > 0) {
-            essence += passiveIncome;
-            updateUI();
+            addEssence(passiveIncome);
         }
     }
     
-    function saveGame() {
+    async function saveGame(showToast = false) {
+        if (saveInProgress) {
+            hasPendingSave = true;
+            return;
+        }
+        saveInProgress = true;
+
         const saveData = {
             essence: essence,
+            totalEarned: totalEarned,
             clickComboCounter: clickComboCounter,
             upgrades: upgrades.map(up => ({ level: up.level, id: up.id })),
             rebirthCount: rebirthCount,
             version: 1
         };
-        localStorage.setItem("alchemyClickerSave", JSON.stringify(saveData));
-        showFloatingText("💾 Игра сохранена!", "#b3ffcf");
+
+        if (IS_AUTHENTICATED) {
+            try {
+                const response = await fetch("/api/game-state", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(saveData)
+                });
+                if (!response.ok) throw new Error("save_failed");
+            } catch (e) {
+                showFloatingText("Ошибка сохранения в БД!", "#ffaa88");
+                saveInProgress = false;
+                return;
+            }
+        } else {
+            localStorage.setItem("alchemyClickerSave", JSON.stringify(saveData));
+        }
+
+        saveInProgress = false;
+        if (hasPendingSave) {
+            hasPendingSave = false;
+            saveGame(false);
+        }
+        if (showToast) showFloatingText("💾 Игра сохранена!", "#b3ffcf");
     }
     
-    function loadGame() {
-        const raw = localStorage.getItem("alchemyClickerSave");
+    async function loadGame() {
+        let raw = null;
+
+        if (IS_AUTHENTICATED) {
+            try {
+                const response = await fetch("/api/game-state");
+                if (!response.ok) return false;
+                const data = await response.json();
+                raw = JSON.stringify(data);
+            } catch (e) {
+                return false;
+            }
+        } else {
+            raw = localStorage.getItem("alchemyClickerSave");
+        }
+
         if (!raw) return false;
+
         try {
             const data = JSON.parse(raw);
             essence = data.essence || 0;
+            if (typeof data.totalEarned === "number") {
+                totalEarned = data.totalEarned;
+            } else {
+                totalEarned = Math.max(totalEarned, essence);
+            }
             clickComboCounter = data.clickComboCounter || 0;
             rebirthCount = data.rebirthCount || 0;
             if (data.upgrades && Array.isArray(data.upgrades)) {
@@ -309,19 +363,21 @@
         } catch(e) { return false; }
     }
     
-    function resetGame() {
+    async function resetGame() {
         if (confirm("Сбросить всю алхимическую лабораторию? Всё пропадёт!")) {
             essence = 0;
             clickComboCounter = 0;
             upgrades.forEach(up => up.level = 0);
+            rebirthCount = 0;
             recalculateBonuses();
             updateUI();
             updateClickMultiplierDisplay();
+            await saveGame(false);
             showFloatingText("🌀 Лаборатория сброшена", "#ffb347");
         }
     }
 
-    function rebirthGame() {
+    async function rebirthGame() {
         if (!IS_AUTHENTICATED) {
             document.getElementById("authOverlay").style.display = "flex";
             return;
@@ -342,30 +398,55 @@
             recalculateBonuses();
             updateUI();
             updateClickMultiplierDisplay();
+            await saveGame(false);
             showFloatingText(`✨ Перерождение! Множитель дохода x${getIncomeMultiplier().toFixed(2)}`, "#b3ffcf");
         }
     }
     
-    function init() {
-        loadGame();
+    async function init() {
+        await loadGame();
         recalculateBonuses();
         updateUI();
         
         const cauldron = document.getElementById("clickCauldron");
         cauldron.addEventListener("click", handleClick);
         
-        document.getElementById("saveBtn").addEventListener("click", saveGame);
-        document.getElementById("resetBtn").addEventListener("click", resetGame);
-        document.getElementById("rebirthBtn").addEventListener("click", rebirthGame);
+        document.getElementById("resetBtn").addEventListener("click", () => { resetGame(); });
+        document.getElementById("rebirthBtn").addEventListener("click", () => { rebirthGame(); });
         
         if (passiveInterval) clearInterval(passiveInterval);
         passiveInterval = setInterval(() => {
             applyPassiveIncome();
         }, 1000);
+
+        if (autoSaveInterval) clearInterval(autoSaveInterval);
+        autoSaveInterval = setInterval(() => {
+            saveGame(false);
+        }, 5000);
         
         setInterval(() => {
             updateClickMultiplierDisplay();
         }, 200);
+
+        window.addEventListener("beforeunload", () => {
+            const payload = JSON.stringify({
+                essence: essence,
+                totalEarned: totalEarned,
+                clickComboCounter: clickComboCounter,
+                upgrades: upgrades.map(up => ({ level: up.level, id: up.id })),
+                rebirthCount: rebirthCount,
+                version: 1
+            });
+
+            if (IS_AUTHENTICATED && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: "application/json" });
+                navigator.sendBeacon("/api/game-state", blob);
+            } else if (IS_AUTHENTICATED) {
+                saveGame(false);
+            } else {
+                localStorage.setItem("alchemyClickerSave", payload);
+            }
+        });
     }
     
     const IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
