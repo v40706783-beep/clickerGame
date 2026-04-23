@@ -57,8 +57,26 @@
     <div class="action-buttons">
         <button class="sec-btn" id="rebirthBtn">🔄 ПЕРЕРОЖДЕНИЕ <span id="rebirthCostText"></span></button>
         <button class="sec-btn" id="resetBtn">🌀 СБРОС</button>
+        <button class="sec-btn" id="leaderboardBtn">🏆 ТОП</button>
     </div>
     <footer>✧ Нажимай на котёл — создавай эссенцию ✧ Улучшения работают даже в фоне ✧</footer>
+</div>
+
+<!-- Leaderboard overlay -->
+<div id="leaderboardOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#2d2218; border:2px solid #cf9f4a; border-radius:24px; padding:24px; max-width:480px; width:100%; max-height:85vh; display:flex; flex-direction:column; color:#ffecb3;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-size:1.4rem; font-weight:bold;">🏆 Таблица лидеров</span>
+            <button onclick="document.getElementById('leaderboardOverlay').style.display='none'" style="background:none; border:none; color:#cfb27c; font-size:1.4rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <button id="lbBtnTotal" class="lb-mode-btn lb-active" onclick="loadLeaderboard('total')">📊 Всего заработано</button>
+            <button id="lbBtnCurrent" class="lb-mode-btn" onclick="loadLeaderboard('current')">💰 Сейчас</button>
+        </div>
+        <div id="lbList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:6px;">
+            <div style="text-align:center; color:#cfb27c; padding:20px;">Загрузка...</div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -402,6 +420,36 @@
             showFloatingText(`✨ Перерождение! Множитель дохода x${getIncomeMultiplier().toFixed(2)}`, "#b3ffcf");
         }
     }
+
+    function loadLeaderboard(mode) {
+        document.getElementById("lbBtnTotal").classList.toggle("lb-active", mode === "total");
+        document.getElementById("lbBtnCurrent").classList.toggle("lb-active", mode === "current");
+        const list = document.getElementById("lbList");
+        list.innerHTML = '<div style="text-align:center;color:#cfb27c;padding:20px;">Загрузка...</div>';
+
+        fetch(`/leaderboard?mode=${mode}`)
+            .then(r => r.json())
+            .then(players => {
+                if (!players.length) {
+                    list.innerHTML = '<div style="text-align:center;color:#cfb27c;padding:20px;">Пока никого нет 🧪</div>';
+                    return;
+                }
+                const medals = ["🥇", "🥈", "🥉"];
+                const rowClasses = ["lb-gold", "lb-silver", "lb-bronze"];
+                list.innerHTML = players.map(p => {
+                    const medal = p.rank <= 3 ? medals[p.rank - 1] : `#${p.rank}`;
+                    const cls = p.rank <= 3 ? rowClasses[p.rank - 1] : "";
+                    return `<div class="lb-row ${cls}">
+                        <span class="lb-rank">${medal}</span>
+                        <span class="lb-name">👤 ${p.username}</span>
+                        <span class="lb-value">🍯 ${p.value.toLocaleString()}</span>
+                    </div>`;
+                }).join("");
+            })
+            .catch(() => {
+                list.innerHTML = '<div style="text-align:center;color:#ff8888;padding:20px;">Ошибка загрузки</div>';
+            });
+    }
     
     async function init() {
         await loadGame();
@@ -413,6 +461,10 @@
         
         document.getElementById("resetBtn").addEventListener("click", () => { resetGame(); });
         document.getElementById("rebirthBtn").addEventListener("click", () => { rebirthGame(); });
+        document.getElementById("leaderboardBtn").addEventListener("click", () => {
+            document.getElementById("leaderboardOverlay").style.display = "flex";
+            loadLeaderboard("total");
+        });
         
         if (passiveInterval) clearInterval(passiveInterval);
         passiveInterval = setInterval(() => {
