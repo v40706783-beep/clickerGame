@@ -45,6 +45,20 @@ def load_user(user_id):
 def index():
     return render_template("index.html")
 
+@app.route('/leaderboard')
+def leaderboard():
+    from flask import jsonify, request as req
+    mode = req.args.get('mode', 'total')
+    if mode == 'current':
+        states = db.session.query(game_state, User).join(User, game_state.user_id == User.id)\
+            .order_by(game_state.money.desc()).limit(100).all()
+        players = [{"rank": i+1, "username": u.username, "value": round(gs.money or 0, 1)} for i, (gs, u) in enumerate(states)]
+    else:
+        states = db.session.query(game_state, User).join(User, game_state.user_id == User.id)\
+            .order_by(game_state.total_earned.desc()).limit(100).all()
+        players = [{"rank": i+1, "username": u.username, "value": round(gs.total_earned or 0, 1)} for i, (gs, u) in enumerate(states)]
+    return jsonify(players)
+
 @app.route('/login', methods=["POST", "GET"])
 def login():
     if request.method == "GET":
@@ -85,6 +99,22 @@ def register():
     login_user(user)
     flash("Регистрация прошла успешно!", 'success')
     return redirect('/')
+
+@app.route('/save_game', methods=['POST'])
+def save_game():
+    from flask import jsonify, request as req
+    if not current_user.is_authenticated:
+        return jsonify({'ok': False}), 401
+    data = req.get_json()
+    state = game_state.query.filter_by(user_id=current_user.id).first()
+    if not state:
+        state = game_state(user_id=current_user.id, money=0, total_earned=0, rebirths=0, click_level=0, passive_level=0)
+        db.session.add(state)
+    state.money = data.get('essence', 0)
+    state.total_earned = data.get('total_earned', 0)
+    state.rebirths = data.get('rebirthCount', 0)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 @app.route('/logout')
 def logout():

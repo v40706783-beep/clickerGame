@@ -58,18 +58,37 @@
         <button class="sec-btn" id="saveBtn">💾 СОХРАНИТЬ</button>
         <button class="sec-btn" id="rebirthBtn">🔄 ПЕРЕРОЖДЕНИЕ <span id="rebirthCostText"></span></button>
         <button class="sec-btn" id="resetBtn">🌀 СБРОС</button>
+        <button class="sec-btn" id="leaderboardBtn">🏆 ТОП</button>
     </div>
     <footer>✧ Нажимай на котёл — создавай эссенцию ✧ Улучшения работают даже в фоне ✧</footer>
 </div>
 
+<!-- Leaderboard overlay -->
+<div id="leaderboardOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:2000; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#2d2218; border:2px solid #cf9f4a; border-radius:24px; padding:24px; max-width:480px; width:100%; max-height:85vh; display:flex; flex-direction:column; color:#ffecb3;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-size:1.4rem; font-weight:bold;">🏆 Таблица лидеров</span>
+            <button onclick="document.getElementById('leaderboardOverlay').style.display='none'" style="background:none; border:none; color:#cfb27c; font-size:1.4rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <button id="lbBtnTotal" class="lb-mode-btn lb-active" onclick="loadLeaderboard('total')">📊 Всего заработано</button>
+            <button id="lbBtnCurrent" class="lb-mode-btn" onclick="loadLeaderboard('current')">💰 Сейчас</button>
+        </div>
+        <div id="lbList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:6px;">
+            <div style="text-align:center; color:#cfb27c; padding:20px;">Загрузка...</div>
+        </div>
+    </div>
+</div>
+
 <script>
     let essence = 0.0;
+    let totalEarned = 0.0;
     let baseClickGain = 1;
     let clickMultiplier = 1.0;
     let clickComboCounter = 0;
     const MAX_MULTI = 3.0;
     const CLICKS_PER_BOOST = 10;
-    
+
     const REBIRTH_BASE_COST = 5000;
     const REBIRTH_COST_GROWTH = 0.75;
     const INCOME_MULTIPLIER_PER_REBIRTH = 2;
@@ -118,7 +137,7 @@
 
     let lastTimestamp = 0;
     let passiveInterval = null;
-    
+
     function getUpgradePrice(upgrade) {
         let price = Math.floor(upgrade.basePrice * (1 + upgrade.level * 0.7));
         return Math.max(price, upgrade.basePrice);
@@ -128,7 +147,7 @@
         let totalClickBonus = 0;
         let totalPassive = 0;
         let totalPermMulti = 0;
-        
+
         upgrades.forEach(up => {
             if (up.type === "click_power") {
                 totalClickBonus += up.level * up.bonusPerLevel;
@@ -138,15 +157,15 @@
                 totalPermMulti += up.level * up.bonusPerLevel;
             }
         });
-        
+
         baseClickGain = 1 + totalClickBonus;
         window.permanentMultiBonus = totalPermMulti;
         updateClickMultiplierDisplay();
-        
+
         window.currentPassiveIncome = totalPassive * getIncomeMultiplier();
         updateEPSDisplay();
     }
-    
+
     function updateClickMultiplierDisplay() {
         let heatBonus = 1.0 + (clickComboCounter / CLICKS_PER_BOOST) * 0.1;
         if (heatBonus > MAX_MULTI) heatBonus = MAX_MULTI;
@@ -160,6 +179,7 @@
 
     function addEssence(amount) {
         essence += amount;
+        if (amount > 0) totalEarned += amount;
         if (essence < 0) essence = 0;
         updateUI();
     }
@@ -171,20 +191,20 @@
         }
         let gain = baseClickGain * clickMultiplier * getIncomeMultiplier();
         addEssence(gain);
-        
+
         clickComboCounter++;
         if (clickComboCounter > CLICKS_PER_BOOST * 30) clickComboCounter = CLICKS_PER_BOOST * 30;
-        
+
         let newHeatBonus = 1.0 + (clickComboCounter / CLICKS_PER_BOOST) * 0.1;
         if (newHeatBonus > MAX_MULTI) {
             if (clickComboCounter > CLICKS_PER_BOOST * (MAX_MULTI-1)*10) clickComboCounter = CLICKS_PER_BOOST * (MAX_MULTI-1)*10;
         }
         updateClickMultiplierDisplay();
-        
+
         const cauldron = document.getElementById("clickCauldron");
         cauldron.style.transform = "scale(0.96)";
         setTimeout(() => { if(cauldron) cauldron.style.transform = ""; }, 100);
-        
+
         showFloatingText(`+${gain.toFixed(1)}`, "#ffd966");
     }
 
@@ -210,7 +230,7 @@
             setTimeout(() => div.remove(), 500);
         }, 20);
     }
-    
+
     function buyUpgrade(upgrade, index) {
         let price = getUpgradePrice(upgrade);
         if (essence >= price) {
@@ -235,7 +255,7 @@
             if (up.type === "click_power") effectValue = `+${up.level * up.bonusPerLevel} к клику`;
             else if (up.type === "passive") effectValue = `+${(up.level * up.bonusPerLevel).toFixed(1)}/сек`;
             else effectValue = `+${(up.level * up.bonusPerLevel).toFixed(1)}x множитель`;
-            
+
             const card = document.createElement("div");
             card.className = "upgrade-card";
             card.innerHTML = `
@@ -261,13 +281,13 @@
         document.getElementById("rebirthCostText").innerText = `${Math.floor(rebirthCost)} эсс.`;
         document.getElementById("rebirthBtn").classList.toggle("disabled", essence < rebirthCost);
     }
-    
+
     function updateEPSDisplay() {
         let passive = window.currentPassiveIncome || 0;
         let eps = passive;
         document.getElementById("epsDisplay").innerHTML = `⚗️ +${eps.toFixed(1)}/сек`;
     }
-    
+
     function applyPassiveIncome() {
         let passiveIncome = window.currentPassiveIncome || 0;
         if (passiveIncome > 0) {
@@ -275,28 +295,40 @@
             updateUI();
         }
     }
-    
+
     function saveGame() {
         const saveData = {
             essence: essence,
+            totalEarned: totalEarned,
             clickComboCounter: clickComboCounter,
             upgrades: upgrades.map(up => ({ level: up.level, id: up.id })),
             rebirthCount: rebirthCount,
             version: 1
         };
         localStorage.setItem("alchemyClickerSave", JSON.stringify(saveData));
+        if (IS_AUTHENTICATED) {
+            fetch('/save_game', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    essence: essence,
+                    total_earned: totalEarned,
+                    rebirthCount: rebirthCount
+                })
+            });
+        }
         showFloatingText("💾 Игра сохранена!", "#b3ffcf");
     }
-    
+
     function loadGame() {
         const raw = localStorage.getItem("alchemyClickerSave");
         if (!raw) return false;
         try {
             const data = JSON.parse(raw);
             essence = data.essence || 0;
+            totalEarned = data.totalEarned || 0;
             clickComboCounter = data.clickComboCounter || 0;
-            rebirthCount = data.rebirthCount || 0;
-            if (data.upgrades && Array.isArray(data.upgrades)) {
+            rebirthCount = data.rebirthCount || 0;            if (data.upgrades && Array.isArray(data.upgrades)) {
                 data.upgrades.forEach(savedUp => {
                     const target = upgrades.find(u => u.id === savedUp.id);
                     if (target) target.level = savedUp.level;
@@ -308,7 +340,7 @@
             return true;
         } catch(e) { return false; }
     }
-    
+
     function resetGame() {
         if (confirm("Сбросить всю алхимическую лабораторию? Всё пропадёт!")) {
             essence = 0;
@@ -345,31 +377,66 @@
             showFloatingText(`✨ Перерождение! Множитель дохода x${getIncomeMultiplier().toFixed(2)}`, "#b3ffcf");
         }
     }
-    
+
+    function loadLeaderboard(mode) {
+        document.getElementById('lbBtnTotal').classList.toggle('lb-active', mode === 'total');
+        document.getElementById('lbBtnCurrent').classList.toggle('lb-active', mode === 'current');
+        const list = document.getElementById('lbList');
+        list.innerHTML = '<div style="text-align:center;color:#cfb27c;padding:20px;">Загрузка...</div>';
+        fetch(`/leaderboard?mode=${mode}`)
+            .then(r => r.json())
+            .then(players => {
+                if (!players.length) {
+                    list.innerHTML = '<div style="text-align:center;color:#cfb27c;padding:20px;">Пока никого нет 🧪</div>';
+                    return;
+                }
+                const medals = ['🥇', '🥈', '🥉'];
+                const rowClasses = ['lb-gold', 'lb-silver', 'lb-bronze'];
+                list.innerHTML = players.map(p => {
+                    const medal = p.rank <= 3 ? medals[p.rank-1] : `#${p.rank}`;
+                    const cls = p.rank <= 3 ? rowClasses[p.rank-1] : '';
+                    return `<div class="lb-row ${cls}">
+                        <span class="lb-rank">${medal}</span>
+                        <span class="lb-name">👤 ${p.username}</span>
+                        <span class="lb-value">🍯 ${p.value.toLocaleString()}</span>
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => {
+                list.innerHTML = '<div style="text-align:center;color:#ff8888;padding:20px;">Ошибка загрузки</div>';
+            });
+    }
+
     function init() {
         loadGame();
         recalculateBonuses();
         updateUI();
-        
+
         const cauldron = document.getElementById("clickCauldron");
         cauldron.addEventListener("click", handleClick);
-        
+
         document.getElementById("saveBtn").addEventListener("click", saveGame);
         document.getElementById("resetBtn").addEventListener("click", resetGame);
         document.getElementById("rebirthBtn").addEventListener("click", rebirthGame);
-        
+        document.getElementById("leaderboardBtn").addEventListener("click", () => {
+            document.getElementById("leaderboardOverlay").style.display = "flex";
+            loadLeaderboard('total');
+        });
+
         if (passiveInterval) clearInterval(passiveInterval);
         passiveInterval = setInterval(() => {
             applyPassiveIncome();
         }, 1000);
-        
+
         setInterval(() => {
             updateClickMultiplierDisplay();
         }, 200);
     }
-    
+
     const IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
     init();
 </script>
 </body>
 </html>
+
+
