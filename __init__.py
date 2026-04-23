@@ -26,6 +26,16 @@ class User(db.Model, UserMixin):
     def __str__(self):
         return f"ID: {self.id}, Логин: {self.username}"
 
+class game_state(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, unique=True)
+    money = db.Column(db.Float)
+    total_earned = db.Column(db.Float)
+    rebirths = db.Column(db.Integer)
+    click_level = db.Column(db.Integer)
+    passive_level = db.Column(db.Integer)
+
+
 @manager.user_loader
 def load_user(user_id):
     return db.session.get(User, user_id)
