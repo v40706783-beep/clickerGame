@@ -287,3 +287,59 @@ footer {
     margin-top: 15px;
 }
 
+
+/* Leaderboard */
+.lb-mode-btn {
+    flex: 1;
+    background: #2c2b26;
+    border: 1px solid #cf9f4a;
+    color: #f2e0b0;
+    padding: 8px 12px;
+    border-radius: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.1s;
+    font-size: 0.85rem;
+}
+
+.lb-mode-btn.lb-active {
+    background: #6b3f1c;
+    color: #ffefcf;
+}
+
+.lb-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #34281cd9;
+    border-radius: 40px;
+    padding: 8px 16px;
+    border: 1px solid #5a3e1b;
+}
+
+.lb-row.lb-gold { border-color: #ffd700; background: #3d2e0e; }
+.lb-row.lb-silver { border-color: #c0c0c0; background: #2e2e2e; }
+.lb-row.lb-bronze { border-color: #cd7f32; background: #2e1e0e; }
+
+.lb-rank {
+    font-size: 1.3rem;
+    min-width: 36px;
+    text-align: center;
+}
+
+.lb-name {
+    flex: 1;
+    font-weight: bold;
+    color: #ffd28f;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lb-value {
+    font-family: monospace;
+    color: #b3ffcf;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
