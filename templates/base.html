@@ -2,12 +2,17 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, {% block viewport_extra %}{% endblock %}">
     <meta name="description" content="">
     <title>{% block title %}{% endblock %}</title>
+    {% block styles %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+    {% endblock %}
+    {% block head_extra %}{% endblock %}
   </head>
-  <body class="d-flex flex-column min-vh-100">
+  <body class="{% block body_class %}d-flex flex-column min-vh-100{% endblock %}">
+
+{% block header %}
 <header>
     <nav class="navbar navbar-dark bg-dark px-3">
         <a class="navbar-brand" href="/">⚗️ Alchemy Clicker</a>
@@ -23,27 +28,26 @@
     </nav>
     {% block menu %}{% endblock %}
 </header>
-<main class = "container">
+<main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-     {% endwith %}
-  {% block main %}{% endblock %}
-
-
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% block main %}{% endblock %}
 </main>
+<footer class="mt-auto"></footer>
+{% endblock %}
 
-<footer class="mt-auto">
+{% block body_content %}{% endblock %}
 
-
-</footer>
+    {% block scripts %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa" crossorigin="anonymous"></script>
-
+    {% endblock %}
   </body>
 </html>
