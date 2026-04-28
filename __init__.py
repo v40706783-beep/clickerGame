@@ -166,20 +166,29 @@ def register():
 
 @app.route('/save_game', methods=['POST'])
 def save_game():
-    from flask import jsonify, request as req
     if not current_user.is_authenticated:
         return jsonify({'ok': False}), 401
-    data = req.get_json()
+    data = request.get_json(force=True, silent=True) or {}
     state = game_state.query.filter_by(user_id=current_user.id).first()
     if not state:
-        state = game_state(user_id=current_user.id, money=0, total_earned=0, rebirths=0, click_level=0, passive_level=0)
+        state = game_state(user_id=current_user.id)
         db.session.add(state)
-    state.money = data.get('essence', 0)
-    state.total_earned = data.get('total_earned', 0)
-    state.rebirths = data.get('rebirthCount', 0)
+    state.money = float(data.get('essence', 0))
+    state.total_earned = float(data.get('totalEarned', 0))
+    state.rebirths = int(data.get('rebirthCount', 0))
+    state.click_combo = int(data.get('clickComboCounter', 0))
+    state.upgrades_json = json.dumps(data.get('upgrades', []))
     db.session.commit()
     return jsonify({'ok': True})
 
+@app.route('/load_game')
+def load_game():
+    if not current_user.is_authenticated:
+        return jsonify({}), 401
+    state = game_state.query.filter_by(user_id=current_user.id).first()
+    if not state:
+        return jsonify(_default_game_state())
+    return jsonify(_serialize_game_state(state))
 @app.route('/logout')
 def logout():
     logout_user()
