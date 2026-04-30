@@ -1,12 +1,18 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Alchemy Clicker — Зельеварение</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Alchemy Clicker — Зельеварение{% endblock %}
+
+{% block viewport_extra %}user-scalable=no{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+{% endblock %}
+
+{% block body_class %}{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block body_content %}
 <div class="game-container">
     <div class="header">
         <div class="title">⚗️ ALCHEMY CLICKER 🧪</div>
@@ -14,6 +20,15 @@
             <span class="essence-label">🍯 Алхимическая эссенция</span>
             <span class="essence-count" id="essenceDisplay">0</span>
             <span class="essence-per-sec" id="epsDisplay">⚗️ 0/сек</span>
+        </div>
+        <div class="auth-bar">
+            {% if current_user.is_authenticated %}
+                <span class="auth-username">👤 {{ current_user.username }}</span>
+                <a href="/logout" class="auth-btn auth-btn-logout">🚪 Выйти</a>
+            {% else %}
+                <a href="/login" class="auth-btn auth-btn-login">🔑 Войти</a>
+                <a href="/register" class="auth-btn auth-btn-register">✨ Регистрация</a>
+            {% endif %}
         </div>
     </div>
 
@@ -23,6 +38,7 @@
             <div class="click-hint">🔮 ВАРИТЬ ЗЕЛЬЕ 🔮</div>
         </div>
     </div>
+
     {% if not current_user.is_authenticated %}
     <div id="authOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; justify-content:center; align-items:center;">
         <div style="background:#2d2218; border:2px solid #cf9f4a; border-radius:20px; padding:30px 40px; text-align:center; color:#ffecb3; max-width:320px;">
@@ -55,6 +71,7 @@
     </div>
 
     <div class="action-buttons">
+        <button class="sec-btn" id="saveBtn">💾 СОХРАНИТЬ</button>
         <button class="sec-btn" id="rebirthBtn">🔄 ПЕРЕРОЖДЕНИЕ <span id="rebirthCostText"></span></button>
         <button class="sec-btn" id="resetBtn">🌀 СБРОС</button>
         <button class="sec-btn" id="leaderboardBtn">🏆 ТОП</button>
@@ -78,6 +95,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 <!-- AI Chat Button -->
 <button id="aiChatBtn" onclick="toggleAiChat()" title="Спросить ИИ-ассистента">🤖</button>
@@ -561,20 +579,10 @@
                 rebirthCount: rebirthCount,
                 version: 1
             });
+{% block head_extra %}
+<script>const IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};</script>
+{% endblock %}
 
-            if (IS_AUTHENTICATED && navigator.sendBeacon) {
-                const blob = new Blob([payload], { type: "application/json" });
-                navigator.sendBeacon("/api/game-state", blob);
-            } else if (IS_AUTHENTICATED) {
-                saveGame(false);
-            } else {
-                localStorage.setItem("alchemyClickerSave", payload);
-            }
-        });
-    }
-    
-    const IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
-    init();
-</script>
-</body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='game.js') }}"></script>
+{% endblock %}
