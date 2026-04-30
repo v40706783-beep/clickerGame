@@ -79,6 +79,78 @@
     </div>
 </div>
 
+<!-- AI Chat Button -->
+<button id="aiChatBtn" onclick="toggleAiChat()" title="Спросить ИИ-ассистента">🤖</button>
+
+<!-- AI Chat Overlay -->
+<div id="aiChatOverlay">
+    <div id="aiChatHeader">
+        <span>🧙 Алхимик-ИИ</span>
+        <button onclick="toggleAiChat()">✕</button>
+    </div>
+    <div id="aiChatMessages"></div>
+    <div id="aiChatInputArea">
+        <input id="aiChatInput" type="text" placeholder="Спроси об игре..." maxlength="300"
+               onkeydown="if(event.key==='Enter') sendAiMessage()">
+        <button onclick="sendAiMessage()">➤</button>
+    </div>
+</div>
+
+<script>
+    let aiMessages = [];
+
+    function toggleAiChat() {
+        const overlay = document.getElementById("aiChatOverlay");
+        const isOpen = overlay.style.display === "flex";
+        overlay.style.display = isOpen ? "none" : "flex";
+        if (!isOpen) {
+            document.getElementById("aiChatInput").focus();
+            if (aiMessages.length === 0) appendAiMessage("bot", "Привет! Я ИИ-ассистент Alchemy Clicker. Спроси меня о механиках игры, улучшениях или таблице лидеров 🧪");
+        }
+    }
+
+    function appendAiMessage(role, text) {
+        const container = document.getElementById("aiChatMessages");
+        const div = document.createElement("div");
+        div.className = role === "user" ? "ai-msg ai-msg-user" : "ai-msg ai-msg-bot";
+        div.innerText = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendAiMessage() {
+        const input = document.getElementById("aiChatInput");
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = "";
+
+        appendAiMessage("user", text);
+        aiMessages.push({ role: "user", content: text });
+
+        const typing = document.createElement("div");
+        typing.className = "ai-msg ai-msg-bot";
+        typing.id = "aiTyping";
+        typing.innerText = "⏳ Думаю...";
+        document.getElementById("aiChatMessages").appendChild(typing);
+
+        try {
+            const resp = await fetch("/api/ai-chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messages: aiMessages })
+            });
+            const data = await resp.json();
+            document.getElementById("aiTyping")?.remove();
+            const answer = data.answer || "Ошибка ответа";
+            appendAiMessage("bot", answer);
+            aiMessages.push({ role: "assistant", content: answer });
+        } catch (e) {
+            document.getElementById("aiTyping")?.remove();
+            appendAiMessage("bot", "Ошибка соединения 😔");
+        }
+    }
+</script>
+
 <script>
     let essence = 0.0;
     let baseClickGain = 1;
