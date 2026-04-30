@@ -30,11 +30,12 @@ body {
 .header {
     text-align: center;
     background: #2d2218e0;
-    border-radius: 100px;
+    border-radius: 28px;
     padding: 12px 20px;
     margin-bottom: 20px;
     backdrop-filter: blur(8px);
     box-shadow: inset 0 1px 4px #ffefb0, 0 6px 12px rgba(0,0,0,0.3);
+    overflow: visible;
 }
 
 .title {
@@ -342,4 +343,72 @@ footer {
     color: #b3ffcf;
     font-size: 0.85rem;
     white-space: nowrap;
+}
+
+/* Auth bar inside game header */
+.auth-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.auth-username {
+    color: #f7d98c;
+    font-size: 0.85rem;
+    font-weight: bold;
+    background: #1f140c;
+    padding: 5px 14px;
+    border-radius: 30px;
+}
+
+.auth-btn {
+    padding: 6px 16px;
+    border-radius: 40px;
+    font-weight: bold;
+    font-size: 0.82rem;
+    text-decoration: none;
+    transition: opacity 0.15s, transform 0.1s;
+    cursor: pointer;
+    border: none;
+    display: inline-block;
+}
+
+.auth-btn:active {
+    transform: scale(0.96);
+}
+
+.auth-btn-login {
+    background: #2c2b26;
+    color: #f2e0b0;
+    border: 1px solid #6b5a3a;
+}
+
+.auth-btn-login:hover {
+    background: #3a3830;
+    color: #ffe8b0;
+}
+
+.auth-btn-register {
+    background: #6b3f1c;
+    color: #ffefcf;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.auth-btn-register:hover {
+    background: #7d4a22;
+    color: #fff5df;
+}
+
+.auth-btn-logout {
+    background: #2c1b0e;
+    color: #ffb07a;
+    border: 1px solid #7a3a1a;
+}
+
+.auth-btn-logout:hover {
+    background: #3a2010;
+    color: #ffc090;
 }
