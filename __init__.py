@@ -5,6 +5,25 @@ from flask_login import UserMixin, LoginManager, login_user, login_required, log
 from werkzeug.security import check_password_hash, generate_password_hash
 import json
 from sqlalchemy import inspect, text
+import requests as http_requests
+
+# AI config (из main.py)
+AI_API_KEY = "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"  # вставь свой ключ сюда
+AI_URL = "https://openrouter.ai/api/v1/chat/completions"
+AI_MODEL = "openrouter/free"
+AI_SYSTEM_PROMPT = """Ты — дружелюбный ИИ-ассистент игры Alchemy Clicker.
+
+О игре:
+- Alchemy Clicker — браузерная кликер-игра про зельеварение.
+- Игрок нажимает на котёл, чтобы зарабатывать алхимическую эссенцию.
+- Есть 3 улучшения: Травник (+клик), Гомункул-помощник (пассивный доход), Философский камень (+множитель).
+- Алхимический жар: каждые 10 кликов множитель растёт на 0.1x, максимум x3.
+- Перерождение: сбрасывает прогресс, но увеличивает множитель дохода на x2 за каждое перерождение.
+- Есть таблица лидеров — топ игроков по заработанной эссенции.
+- Нужна регистрация, чтобы сохранять прогресс и участвовать в таблице лидеров.
+- Без регистрации прогресс сохраняется только в браузере (localStorage).
+
+Отвечай кратко и по делу. Если вопрос не связан с игрой — вежливо скажи, что ты помогаешь только по теме Alchemy Clicker."""
 
 app = Flask(__name__)
 app.secret_key = 'alchemy-secret-key-change-me'
@@ -235,6 +254,30 @@ def save_game_state():
     db.session.commit()
 
     return jsonify({"ok": True})
+
+@app.route('/api/ai-chat', methods=['POST'])
+def ai_chat():
+    data = request.get_json(silent=True) or {}
+    messages = data.get('messages', [])
+    if not isinstance(messages, list) or not messages:
+        return jsonify({'error': 'no messages'}), 400
+
+    full_messages = [{"role": "system", "content": AI_SYSTEM_PROMPT}] + messages[-10:]
+
+    try:
+        resp = http_requests.post(
+            AI_URL,
+            headers={"Authorization": f"Bearer {AI_API_KEY}", "Content-Type": "application/json"},
+            json={"model": AI_MODEL, "messages": full_messages},
+            timeout=30
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': resp.text}), 502
+        answer = resp.json()["choices"][0]["message"]["content"]
+        return jsonify({'answer': answer})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     with app.app_context():
