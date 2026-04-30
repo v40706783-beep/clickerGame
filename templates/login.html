@@ -1,31 +1,42 @@
 {% extends 'base.html' %}
 
-{% block title %}
-Авторизация
+{% block title %}Войти — Alchemy Clicker{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
 {% endblock %}
 
-{% block menu %}
+{% block body_class %}auth-page{% endblock %}
 
-{% endblock %}
+{% block header %}{% endblock %}
 
-{% block main %}
-<div class="d-flex justify-content-center">
-    <form class="needs-validation" method="POST" style="max-width: 400px; width: 100%;">
-        <div class="mb-3">
-            <label for="username" class="form-label">Логин</label>
-            <input type="text" class="form-control" id="username" name="username" required>
-        </div>
-        <div class="mb-3">
-            <label for="password" class="form-label">Пароль</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-        </div>
+{% block body_content %}
+<div class="auth-container">
+    <a href="/" class="auth-back">← Назад</a>
+    <div class="auth-logo">⚗️</div>
+    <h1 class="auth-title">Alchemy Clicker</h1>
+    <p class="auth-subtitle">Войди в свою лабораторию</p>
 
-        <div class="mb-3">
-            <button class="btn btn-primary" type="submit">Войти</button>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="auth-alert auth-alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="auth-form">
+        <div class="auth-field">
+            <label for="username">👤 Логин</label>
+            <input type="text" id="username" name="username" placeholder="Имя алхимика" required autocomplete="username">
         </div>
+        <div class="auth-field">
+            <label for="password">🔒 Пароль</label>
+            <input type="password" id="password" name="password" placeholder="Секретное зелье" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="auth-submit">🔑 Войти в лабораторию</button>
     </form>
+
+    <p class="auth-switch">Нет аккаунта? <a href="/register">Создать алхимика</a></p>
 </div>
-
 {% endblock %}
-
-
