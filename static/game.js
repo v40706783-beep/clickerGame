@@ -8,7 +8,6 @@ const CLICKS_PER_BOOST = 10;
 
 const REBIRTH_BASE_COST = 5000;
 const REBIRTH_COST_GROWTH = 0.75;
-const INCOME_MULTIPLIER_PER_REBIRTH = 2;
 let rebirthCount = 0;
 
 let passiveInterval = null;
@@ -21,17 +20,19 @@ function getRebirthCost() {
 }
 
 function getIncomeMultiplier() {
-    return 1 + rebirthCount * INCOME_MULTIPLIER_PER_REBIRTH;
+    // Rebirth progression: 1st x2, 2nd x3, 3rd x4, etc.
+    return 1 + rebirthCount;
 }
 
 let upgrades = [
-    { id: 0, name: "🌿 Травник",           desc: "+1 к эссенции за клик",            basePrice: 15,  type: "click_power",   level: 0, bonusPerLevel: 1,   currentBonus: 0 },
-    { id: 1, name: "🧪 Гомункул-помощник", desc: "Авто-варка: +0.8 эссенции/сек",    basePrice: 40,  type: "passive",       level: 0, bonusPerLevel: 0.8, currentBonus: 0 },
-    { id: 2, name: "🔮 Философский камень",desc: "Постоянный множитель клика +0.1х", basePrice: 100, type: "click_mastery", level: 0, bonusPerLevel: 0.1, currentBonus: 0 }
+    { id: 0, name: "🌿 Травник",              desc: "+0.6 к эссенции за клик",             basePrice: 35,  type: "click_power",   level: 0, bonusPerLevel: 0.6,  currentBonus: 0 },
+    { id: 1, name: "🧪 Гомункул-помощник",    desc: "Авто-варка: +0.25 эссенции/сек",       basePrice: 90,  type: "passive",       level: 0, bonusPerLevel: 0.25, currentBonus: 0 },
+    { id: 2, name: "🔮 Философский камень",   desc: "Постоянный множитель клика +0.06х",    basePrice: 180, type: "click_mastery", level: 0, bonusPerLevel: 0.06, currentBonus: 0 },
+    { id: 3, name: "🕯️ Эссенциальный алтарь", desc: "Ритуальный поток: +0.5 эссенции/сек", basePrice: 320, type: "passive",       level: 0, bonusPerLevel: 0.5,  currentBonus: 0 }
 ];
 
 function getUpgradePrice(upgrade) {
-    return Math.max(Math.floor(upgrade.basePrice * (1 + upgrade.level * 0.7)), upgrade.basePrice);
+    return Math.max(Math.floor(upgrade.basePrice * (1 + upgrade.level * 0.95)), upgrade.basePrice);
 }
 
 function recalculateBonuses() {
