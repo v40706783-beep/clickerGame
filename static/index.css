@@ -73,6 +73,8 @@ body {
     text-shadow: 0 2px 5px #552a00;
     font-family: monospace;
     letter-spacing: 2px;
+    min-width: 140px;
+    text-align: center;
 }
 
 .essence-per-sec {
@@ -82,6 +84,8 @@ body {
     color: #b3ffcf;
     font-weight: bold;
     font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* Котёл (кликабельный) */
@@ -535,6 +539,8 @@ body {
     text-shadow: 0 2px 5px #552a00;
     font-family: monospace;
     letter-spacing: 2px;
+    min-width: 140px;
+    text-align: center;
 }
 
 .essence-per-sec {
@@ -544,6 +550,8 @@ body {
     color: #b3ffcf;
     font-weight: bold;
     font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* Котёл (кликабельный) */
