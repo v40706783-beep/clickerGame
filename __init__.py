@@ -8,22 +8,93 @@ from sqlalchemy import inspect, text
 import requests as http_requests
 
 # AI config (из main.py)
-AI_API_KEY = "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"  # вставь свой ключ сюда
+AI_API_KEY = "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"  # вставь свой ключ сюда
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 AI_MODEL = "openrouter/free"
-AI_SYSTEM_PROMPT = """Ты — дружелюбный ИИ-ассистент игры Alchemy Clicker.
+AI_SYSTEM_PROMPT = """Ты — внутриигровой ИИ-ассистент Alchemy Clicker.
 
-О игре:
-- Alchemy Clicker — браузерная кликер-игра про зельеварение.
-- Игрок нажимает на котёл, чтобы зарабатывать алхимическую эссенцию.
-- Есть 3 улучшения: Травник (+клик), Гомункул-помощник (пассивный доход), Философский камень (+множитель).
-- Алхимический жар: каждые 10 кликов множитель растёт на 0.1x, максимум x3.
-- Перерождение: сбрасывает прогресс, но увеличивает множитель дохода на x2 за каждое перерождение.
-- Есть таблица лидеров — топ игроков по заработанной эссенции.
-- Нужна регистрация, чтобы сохранять прогресс и участвовать в таблице лидеров.
-- Без регистрации прогресс сохраняется только в браузере (localStorage).
+Ты знаешь все механики текущей версии игры и отвечаешь как игровой консультант.
 
-Отвечай кратко и по делу. Если вопрос не связан с игрой — вежливо скажи, что ты помогаешь только по теме Alchemy Clicker."""
+Ключевые механики:
+1) Ресурс:
+- Основной ресурс: алхимическая эссенция.
+- Эссенция растёт от кликов по котлу и от пассивного дохода.
+
+2) Клики:
+- Базовый доход клика начинается с 1.
+- Формула клика: baseClickGain * clickMultiplier * incomeMultiplier.
+
+3) Алхимический жар (комбо):
+- Каждые 10 кликов дают +0.1 к временному множителю.
+- Временный множитель ограничен максимумом x3.
+- Жар влияет и на клик, и на пассивный доход.
+
+4) Перерождение:
+- Стоимость: 5000 * (1 + rebirthCount * 0.75), округляется вниз.
+- При перерождении сбрасываются эссенция, комбо и уровни улучшений.
+- Количество перерождений увеличивается на 1.
+- Постоянный множитель дохода: incomeMultiplier = 1 + rebirthCount.
+
+5) Улучшения (4 вида):
+- 🌿 Травник: +0.6 к силе клика за уровень.
+- 🧪 Гомункул-помощник: +0.25 эссенции/сек за уровень.
+- 🔮 Философский камень: +0.06 к постоянному множителю клика за уровень.
+- 🕯️ Эссенциальный алтарь: +0.5 эссенции/сек за уровень.
+- Цена улучшения растёт с уровнем: floor(basePrice * (1 + level * 0.95)).
+
+6) Сохранение:
+- У авторизованных: сохранение на сервер.
+- Без авторизации: сохранение в localStorage.
+- Есть автосохранение.
+
+7) Лидерборд:
+- Режим "Всего заработано" (totalEarned).
+- Режим "Сейчас" (текущая эссенция).
+
+Правила ответов:
+- Отвечай кратко, понятно, по делу.
+- Если вопрос про стратегию, давай 2-4 практичных совета с приоритетом.
+- Если есть контекст состояния игрока, учитывай его в ответе.
+- Не выдумывай несуществующие механики или кнопки.
+- Если вопрос не про игру, вежливо объясни, что ты консультант только по Alchemy Clicker."""
+
+
+def _offline_ai_answer(user_text, game_context):
+    text = (user_text or "").lower()
+    essence = float(game_context.get("essence", 0) or 0)
+    rebirth = int(game_context.get("rebirthCount", 0) or 0)
+    eps = float(game_context.get("eps", 0) or 0)
+    click_mult = float(game_context.get("clickMultiplier", 1) or 1)
+
+    if any(word in text for word in ["привет", "здрав", "hello", "hi"]):
+        return "Привет! Я помогу по механикам Alchemy Clicker: клики, улучшения, перерождение и лидерборд."
+
+    if "перерожд" in text:
+        cost = int(5000 * (1 + rebirth * 0.75))
+        if essence >= cost:
+            return f"Ты уже можешь переродиться: нужно {cost} эссенции, у тебя {essence:.1f}. Перерождение сбросит прогресс улучшений, но повысит доходный множитель."
+        return f"До перерождения нужно {cost} эссенции. Сейчас у тебя {essence:.1f}. Сначала усили пассивный доход и докачай клик."
+
+    if any(word in text for word in ["улучш", "качать", "что купить", "стратег"]):
+        return (
+            "Оптимальная база: 1) возьми несколько уровней Травника для разгона клика, "
+            "2) затем качай Гомункула и Алтарь для стабильного пассивного дохода, "
+            "3) Философский камень усиливает общий клик-множитель и хорошо скейлится в мидгейме."
+        )
+
+    if any(word in text for word in ["жар", "комбо", "множител"]):
+        return "Алхимический жар растет на +0.1 каждые 10 кликов и ограничен x3. Он усиливает и клики, и эссенцию в секунду."
+
+    if any(word in text for word in ["сохран", "пропал прогресс"]):
+        return "Сохранение работает так: с аккаунтом прогресс пишется на сервер, без аккаунта — в localStorage браузера. Также есть автосохранение."
+
+    if any(word in text for word in ["лидер", "топ"]):
+        return "В таблице лидеров есть 2 режима: по общему заработку и по текущей эссенции. Для участия нужен аккаунт."
+
+    return (
+        f"Сейчас у тебя {essence:.1f} эссенции, {eps:.1f}/сек, множитель клика x{click_mult:.2f}, перерождений: {rebirth}. "
+        "Могу подсказать, что выгоднее купить следующим шагом."
+    )
 
 app = Flask(__name__)
 app.secret_key = 'alchemy-secret-key-change-me'
@@ -259,10 +330,36 @@ def save_game_state():
 def ai_chat():
     data = request.get_json(silent=True) or {}
     messages = data.get('messages', [])
+    game_context = data.get('context', {})
     if not isinstance(messages, list) or not messages:
         return jsonify({'error': 'no messages'}), 400
 
-    full_messages = [{"role": "system", "content": AI_SYSTEM_PROMPT}] + messages[-10:]
+    sanitized = []
+    for msg in messages[-10:]:
+        role = msg.get("role")
+        content = msg.get("content", "")
+        if role not in {"user", "assistant"}:
+            continue
+        sanitized.append({"role": role, "content": str(content)})
+
+    context_text = (
+        f"Текущее состояние игрока: essence={game_context.get('essence', 0)}, "
+        f"eps={game_context.get('eps', 0)}, clickMultiplier={game_context.get('clickMultiplier', 1)}, "
+        f"rebirthCount={game_context.get('rebirthCount', 0)}, totalEarned={game_context.get('totalEarned', 0)}."
+    )
+    full_messages = [
+        {"role": "system", "content": AI_SYSTEM_PROMPT},
+        {"role": "system", "content": context_text}
+    ] + sanitized
+
+    # Fallback режим: ассистент остается доступным даже без внешнего AI API.
+    if not AI_API_KEY.strip():
+        last_user = ""
+        for msg in reversed(sanitized):
+            if msg["role"] == "user":
+                last_user = msg["content"]
+                break
+        return jsonify({'answer': _offline_ai_answer(last_user, game_context if isinstance(game_context, dict) else {})})
 
     try:
         resp = http_requests.post(
