@@ -8,7 +8,7 @@ from sqlalchemy import inspect, text
 import requests as http_requests
 
 # AI config (из main.py)
-AI_API_KEY = "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"  # вставь свой ключ сюда
+AI_API_KEY = "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"  
 AI_URL = "https://openrouter.ai/api/v1/chat/completions"
 AI_MODEL = "openrouter/free"
 AI_SYSTEM_PROMPT = """Ты — внутриигровой ИИ-ассистент Alchemy Clicker.
